@@ -145,7 +145,7 @@ function Sidebar({
   className,
   children,
   ...props
- {
+}) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
   if (collapsible === "none") {
@@ -275,8 +275,7 @@ function SidebarRail({ className, ...props }) {
       title="Toggle Sidebar"
       className={cn(
         "hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",
-        "in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
-        "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
+        "in-data-[side=left][data-state=collapsed]_&]:cursor-e-resize in-data-[side=right][data-state=collapsed]_&]:cursor-w-resize",
         "hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full",
         "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
         "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
@@ -380,7 +379,7 @@ function SidebarGroupLabel({
   className,
   asChild = false,
   ...props
- {
+}) {
   const Comp = asChild ? Slot : "div"
 
   return (
@@ -401,7 +400,7 @@ function SidebarGroupAction({
   className,
   asChild = false,
   ...props
- {
+}) {
   const Comp = asChild ? Slot : "button"
 
   return (
@@ -486,7 +485,7 @@ function SidebarMenuButton({
   tooltip,
   className,
   ...props
- {
+}) {
   const Comp = asChild ? Slot : "button"
   const { isMobile, state } = useSidebar()
 
@@ -529,7 +528,7 @@ function SidebarMenuAction({
   asChild = false,
   showOnHover = false,
   ...props
- {
+}) {
   const Comp = asChild ? Slot : "button"
 
   return (
@@ -579,7 +578,7 @@ function SidebarMenuSkeleton({
   className,
   showIcon = false,
   ...props
- {
+}) {
   // Random width between 50 to 90%.
   const width = React.useMemo(() => {
     return `${Math.floor(Math.random() * 40) + 50}%`
@@ -646,7 +645,7 @@ function SidebarMenuSubButton({
   isActive = false,
   className,
   ...props
- {
+}) {
   const Comp = asChild ? Slot : "a"
 
   return (

@@ -25,7 +25,7 @@ export function FlowchartTree({ conversationTree, currentBranch, onSwitchBranch,
     parentX = 0,
   ) => {
     const centerX = dimensions.width / 2
-    let x: number
+    let x
 
     if (level === 0) {
       // Root node is centered
