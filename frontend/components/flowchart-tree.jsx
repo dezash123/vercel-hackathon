@@ -5,42 +5,27 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { GitBranch, Plus } from "lucide-react"
 
-interface ConversationNode {
-  id: string
-  title: string
-  messages: any[]
-  children: ConversationNode[]
-  createdAt?: Date
-  x?: number
-  y?: number
-}
-
-interface FlowchartTreeProps {
-  conversationTree: ConversationNode
-  currentBranch: string
-  onSwitchBranch: (branchId: string) => void
-  onCreateBranch: (messageIndex: number) => void
-}
+// @ts-check
 
 const NODE_WIDTH = 180
 const NODE_HEIGHT = 80
 const LEVEL_HEIGHT = 140
 const NODE_SPACING = 220
 
-export function FlowchartTree({ conversationTree, currentBranch, onSwitchBranch, onCreateBranch }: FlowchartTreeProps) {
+export function FlowchartTree({ conversationTree, currentBranch, onSwitchBranch, onCreateBranch }) {
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 })
-  const containerRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef(null)
 
   // Calculate node positions with improved layout
   const calculatePositions = (
-    node: ConversationNode,
+    node,
     level = 0,
     siblingIndex = 0,
     totalSiblings = 1,
     parentX = 0,
-  ): ConversationNode => {
+  ) => {
     const centerX = dimensions.width / 2
-    let x: number
+    let x
 
     if (level === 0) {
       // Root node is centered
@@ -69,15 +54,15 @@ export function FlowchartTree({ conversationTree, currentBranch, onSwitchBranch,
   const positionedTree = calculatePositions(conversationTree)
 
   // Get all nodes for rendering
-  const getAllNodes = (node: ConversationNode): ConversationNode[] => {
+  const getAllNodes = (node) => {
     return [node, ...node.children.flatMap((child) => getAllNodes(child))]
   }
 
   const allNodes = getAllNodes(positionedTree)
 
   // Get connections between nodes
-  const getConnections = (node: ConversationNode): Array<{ from: ConversationNode; to: ConversationNode }> => {
-    const connections: Array<{ from: ConversationNode; to: ConversationNode }> = []
+  const getConnections = (node) => {
+    const connections = []
 
     node.children.forEach((child) => {
       connections.push({ from: node, to: child })
@@ -102,18 +87,18 @@ export function FlowchartTree({ conversationTree, currentBranch, onSwitchBranch,
     return () => window.removeEventListener("resize", updateDimensions)
   }, [])
 
-  const handleNodeClick = (nodeId: string) => {
-    onSwitchBranch(nodeId)
-  }
+  const handleNodeClick = (nodeId) => {
+  onSwitchBranch(nodeId)
+}
 
-  const getNodeColor = (node: ConversationNode) => {
+  const getNodeColor = (node) => {
     if (node.id === currentBranch) {
       return "bg-primary text-primary-foreground border-primary shadow-md"
     }
     return "bg-card hover:bg-accent border-border hover:border-accent-foreground"
   }
 
-  const getAIMessageCount = (messages: any[]) => {
+  const getAIMessageCount = (messages) => {
     return messages.filter((msg) => msg.role === "assistant").length
   }
 

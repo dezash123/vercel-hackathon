@@ -19,31 +19,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FlowchartTree } from "./flowchart-tree"
 import { GitBranch, MessageSquare, ChevronRight, ChevronDown, Plus, Eye, BarChart3 } from "lucide-react"
 
-interface ConversationNode {
-  id: string
-  title: string
-  messages: any[]
-  children: ConversationNode[]
-  createdAt?: Date
-}
-
-interface PromptTreeSidebarProps {
-  conversationTree: ConversationNode
-  currentBranch: string
-  onSwitchBranch: (branchId: string) => void
-  onCreateBranch: (messageIndex: number) => void
-}
+// @ts-check
 
 export function PromptTreeSidebar({
   conversationTree,
   currentBranch,
   onSwitchBranch,
   onCreateBranch,
-}: PromptTreeSidebarProps) {
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(["root"]))
+}) {
+  const [expandedNodes, setExpandedNodes] = useState(new Set(["root"]))
   const { state } = useSidebar()
 
-  const toggleNode = (nodeId: string) => {
+  const toggleNode = (nodeId) => {
     const newExpanded = new Set(expandedNodes)
     if (newExpanded.has(nodeId)) {
       newExpanded.delete(nodeId)
@@ -53,7 +40,7 @@ export function PromptTreeSidebar({
     setExpandedNodes(newExpanded)
   }
 
-  const renderNode = (node: ConversationNode, depth = 0) => {
+  const renderNode = (node, depth = 0) => {
     const isExpanded = expandedNodes.has(node.id)
     const isActive = currentBranch === node.id
     const hasChildren = node.children.length > 0
@@ -201,12 +188,12 @@ export function PromptTreeSidebar({
   )
 }
 
-function countBranches(node: ConversationNode): number {
+function countBranches(node) {
   return 1 + node.children.reduce((sum, child) => sum + countBranches(child), 0)
 }
 
-function getCurrentBranchMessages(tree: ConversationNode, branchId: string): number {
-  const findBranch = (node: ConversationNode): ConversationNode | null => {
+function getCurrentBranchMessages(tree, branchId) {
+  const findBranch = (node) => {
     if (node.id === branchId) return node
     for (const child of node.children) {
       const found = findBranch(child)
@@ -219,8 +206,8 @@ function getCurrentBranchMessages(tree: ConversationNode, branchId: string): num
   return branch ? branch.messages.length : 0
 }
 
-function countAIMessages(tree: ConversationNode, branchId: string): number {
-  const findBranch = (node: ConversationNode): ConversationNode | null => {
+function countAIMessages(tree, branchId) {
+  const findBranch = (node) => {
     if (node.id === branchId) return node
     for (const child of node.children) {
       const found = findBranch(child)

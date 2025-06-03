@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -9,19 +8,9 @@ import { Badge } from "@/components/ui/badge"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Send, Bot, User, Users, GitBranch } from "lucide-react"
-import type { Message } from "ai"
+// eslint-disable-next-line no-unused-vars
 import { useSidebar } from "@/components/ui/sidebar"
 
-interface ChatInterfaceProps {
-  roomId: string
-  userName: string
-  users: string[]
-  messages: Message[]
-  input: string
-  handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-  handleSubmit: (e: React.FormEvent) => void
-  onCreateBranch: (messageIndex: number) => void
-}
 
 const AI_MODELS = [
   { name: "gpt4", label: "GPT-4", color: "bg-green-500" },
@@ -38,11 +27,11 @@ export function ChatInterface({
   handleInputChange,
   handleSubmit,
   onCreateBranch,
-}: ChatInterfaceProps) {
-  const [selectedAI, setSelectedAI] = useState<string | null>(null)
+}) {
+  const [selectedAI, setSelectedAI] = useState(null)
   const [showAISelector, setShowAISelector] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const messagesEndRef = useRef(null)
+  const inputRef = useRef(null)
   const { state } = useSidebar()
   const isSidebarCollapsed = state === "collapsed"
 
@@ -54,7 +43,7 @@ export function ChatInterface({
     scrollToBottom()
   }, [messages])
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyDown = (e) => {
     if (e.key === "@") {
       setShowAISelector(true)
     } else if (e.key === "Escape") {
@@ -63,25 +52,25 @@ export function ChatInterface({
     }
   }
 
-  const selectAI = (aiName: string) => {
+  const selectAI = (aiName) => {
     setSelectedAI(aiName)
     setShowAISelector(false)
     const newValue = input.replace(/@$/, `@${aiName} `)
-    handleInputChange({ target: { value: newValue } } as any)
+    handleInputChange({ target: { value: newValue } })
     inputRef.current?.focus()
   }
 
-  const isAIPrompt = (message: string) => {
+  const isAIPrompt = (message) => {
     return message.includes("/ai") || message.startsWith("@") || message.includes("#share")
   }
 
-  const getMessageType = (message: Message) => {
+  const getMessageType = (message) => {
     if (message.role === "assistant") return "ai"
     if (isAIPrompt(message.content)) return "prompt"
     return "user"
   }
 
-  const getAIFromMessage = (content: string) => {
+  const getAIFromMessage = (content) => {
     const match = content.match(/@(\w+)/)
     return match ? match[1] : null
   }

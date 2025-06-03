@@ -1,16 +1,9 @@
-import { type NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 
 // In a real application, you'd use a database
-const rooms = new Map<
-  string,
-  {
-    users: string[]
-    messages: any[]
-    createdAt: Date
-  }
->()
+const rooms = new Map()
 
-export async function GET(request: NextRequest, { params }: { params: { roomId: string } }) {
+export async function GET(request, { params }) {
   const roomId = params.roomId
 
   if (!rooms.has(roomId)) {
@@ -24,7 +17,7 @@ export async function GET(request: NextRequest, { params }: { params: { roomId: 
   return NextResponse.json(rooms.get(roomId))
 }
 
-export async function POST(request: NextRequest, { params }: { params: { roomId: string } }) {
+export async function POST(request, { params }) {
   const roomId = params.roomId
   const { action, userName, message } = await request.json()
 
@@ -36,7 +29,7 @@ export async function POST(request: NextRequest, { params }: { params: { roomId:
     })
   }
 
-  const room = rooms.get(roomId)!
+  const room = rooms.get(roomId)
 
   switch (action) {
     case "join":

@@ -1,7 +1,7 @@
 import { openai } from "@ai-sdk/openai"
 import { anthropic } from "@ai-sdk/anthropic"
 import { google } from "@ai-sdk/google"
-import { streamText, type CoreMessage } from "ai"
+import { streamText } from "ai"
 
 export const maxDuration = 30
 
@@ -11,7 +11,7 @@ const AI_MODELS = {
   gemini: google("gemini-pro"),
 }
 
-export async function POST(req: Request) {
+export async function POST(req) {
   try {
     const { messages, roomId, userName } = await req.json()
 
@@ -33,13 +33,13 @@ export async function POST(req: Request) {
       .trim()
 
     // Prepare messages for AI
-    const aiMessages: CoreMessage[] = messages.map((msg: any) => ({
+    const aiMessages = messages.map((msg) => ({
       role: msg.role,
       content: msg.role === "user" ? cleanContent : msg.content,
     }))
 
     // Add system message for context
-    const systemMessage: CoreMessage = {
+    const systemMessage = {
       role: "system",
       content: `You are ${targetAI.toUpperCase()} in a collaborative chat room "${roomId}". 
                 User "${userName}" is asking you a question. 
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
                 mention that in your response.`,
     }
 
-    const model = AI_MODELS[targetAI as keyof typeof AI_MODELS] || AI_MODELS.gpt4
+    const model = AI_MODELS[targetAI] || AI_MODELS.gpt4
 
     const result = streamText({
       model,
