@@ -11,11 +11,12 @@ const app = express();
 app.use(cors());
 
 
-const availableLLMs = [{ short: "deekseek", long: "" }, { short: "llama", long: "" }, { short: "qwen", long: "" }];
+const availableLLMs = [{ short: "deepseek", long: "deepseek-ai/deepseek-r1-distill-llama-8b" }, { short: "llama", long: "" }, { short: "qwen", long: "" }];
 
+console.log(`api key: ${process.env.NVIDIA_API_KEY}`)
 
 const openai = new OpenAI({
-    apiKey: '${process.env.NVIDIA_API_KEY}',
+    apiKey: `${process.env.NVIDIA_API_KEY}`,
     baseURL: 'https://integrate.api.nvidia.com/v1',
 })
 
@@ -110,7 +111,7 @@ io.on('connection', (socket) => {
                 llm.context.push({
                     role: 'user',
                     content: message.text.replace('#share', '').trim(),
-                    timestamp: new Date()
+                    // timestamp: new Date()
                 });
             });
         }
@@ -118,6 +119,7 @@ io.on('connection', (socket) => {
         // Check for LLM mentions
         const mentionMatch = message.text.match(/^@(\w+)\s+(.+)/);
         if (mentionMatch) {
+            io.to(room).emit('message', newMessage);
             const [_, llmName, prompt] = mentionMatch;
             const llm = roomData.llms.find(l => l.name === llmName);
 
@@ -127,28 +129,34 @@ io.on('connection', (socket) => {
                 llm.context.push({
                     role: 'user',
                     content: prompt,
-                    timestamp: new Date()
+                    // timestamp: new Date()
                 });
 
                 try {
                     io.to(room).emit('llmMessageStart', {
                         user: { id: 'system', name: llm.name },
-                        text: llmResponse,
+                        text: "",
                         timestamp: new Date()
                     });
 
                     const llmResponse = await handleLLMRequest(llm, prompt, room);
 
+                    io.to(room).emit("message", {
+                        user: { id: 'system', name: llm.name },
+                        text: llmResponse,
+                        timestamp: new Date()
+                    })
+
                     // Add LLM response to context
                     llm.context.push({
                         role: 'assistant',
                         content: llmResponse,
-                        timestamp: new Date()
+                        // timestamp: new Date()
                     });
 
                     io.to(room).emit('llmMessageEnd', {
                         user: { id: 'system', name: llm.name },
-                        text: llmResponse,
+                        text: "",
                         timestamp: new Date()
                     });
                 } catch (error) {
@@ -160,7 +168,9 @@ io.on('connection', (socket) => {
         // Store message and keep only last 100 messages
         roomData.messages = [...roomData.messages.slice(-99), newMessage];
 
-        io.to(room).emit('message', newMessage);
+        if (!mentionMatch) {
+            io.to(room).emit('message', newMessage);
+        }
     });
 
     // Handle disconnects
@@ -186,7 +196,6 @@ io.on('connection', (socket) => {
             socket.emit('error', { message: 'Room not found' });
             return;
         }
-
 
         // Check if the llmName exists in availableLLMs
         const llm = availableLLMs.find(l => l.short === llmName);
@@ -234,43 +243,37 @@ io.on('connection', (socket) => {
 
 // NVIDIA NIM integration
 async function handleLLMRequest(llmConfig, prompt, room) {
-    // const response = await axios.post(llmConfig.endpoint, {
-    //   prompt,
-    //   context: llmConfig.context || [],
-    //   max_tokens: 200,
-    //   temperature: 0.7
-    // }, {
-    //   headers: {
-    //     'Authorization': `Bearer ${process.env.NVIDIA_API_KEY}`,
-    //     'Content-Type': 'application/json'
-    //   }
-    // });
-    // 
-    // return response.data.choices[0].text.trim();
-
     const modelName = llmConfig.longName;
+
+    console.log("model name: ", modelName);
+    console.log("prompt: ", prompt);
+
+    console.log("context: ", llmConfig.context);
 
     const completion = await openai.chat.completions.create({
         model: modelName,
-        messages: [{ context: llmConfig.context || [] }, { "role": "user", "content": prompt }],
+        messages: llmConfig.context.concat([{ "role": "user", "content": prompt }]),
         temperature: 0.6,
         top_p: 0.7,
         max_tokens: 4096,
         stream: true
-    })
+    });
+
+    let finalResponse = ''; // Collect the streamed content here
 
     for await (const chunk of completion) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        finalResponse += content; // Append the streamed content
         io.to(room).emit('llmMessage', {
             user: { id: 'system', name: llmConfig.name },
-            text: chunk.choices[0]?.delta?.content || '',
+            text: content,
             timestamp: new Date()
         });
-
-        // process.stdout.write(chunk.choices[0]?.delta?.content || '')
     }
 
-    return completion.choices[0]?.message?.content || '';
+    return finalResponse; // Return the full response after streaming is complete
 }
+
 
 server.listen(3001, () => {
     console.log('Server running on port 3001');
