@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams } from "next/navigation"
 import { ChatInterface } from "@/components/chat-interface"
 import { PromptTreeSidebar } from "@/components/prompt-tree-sidebar"
 import { SidebarProvider } from "@/components/ui/sidebar"
@@ -10,9 +10,11 @@ import { useChat } from "@ai-sdk/react"
 
 export default function RoomPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const roomId = params.roomId
-  const [userName, setUserName] = useState("")
-  const [isNameSet, setIsNameSet] = useState(false)
+  const initialName = searchParams.get("name") || ""
+  const [userName, setUserName] = useState(initialName)
+  const [isNameSet, setIsNameSet] = useState(Boolean(initialName))
   const [users, setUsers] = useState([])
   const [conversationTree, setConversationTree] = useState({
     id: "root",
