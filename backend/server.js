@@ -4,8 +4,10 @@ const { Server } = require('socket.io');
 const crypto = require('crypto');
 const axios = require('axios');
 const rateLimit = require('express-rate-limit');
+const cors = require("cors")
 
 const app = express();
+app.use(cors());
 
 // Configure rate limiting
 const apiLimiter = rateLimit({
@@ -17,9 +19,9 @@ const apiLimiter = rateLimit({
 
 app.use(apiLimiter);
 const server = http.createServer(app);
-const io = new Server(server, {
+const io = require("socket.io")(server, {
   cors: {
-    origin: process.env.NEXT_PUBLIC_CLIENT_URL,
+    origin: true,
     methods: ["GET", "POST"]
   }
 });
@@ -81,6 +83,8 @@ io.on('connection', (socket) => {
     const room = Array.from(socket.rooms).find(room => room !== socket.id);
     if (!room || !rooms.has(room)) return;
 
+    const roomData = rooms.get(room);
+
     // Handle message context and LLM prompts
     const newMessage = {
       user: roomData.users.get(socket.id),
@@ -88,7 +92,6 @@ io.on('connection', (socket) => {
       timestamp: new Date()
     };
 
-    const roomData = rooms.get(room);
     
     // Check for shared context updates
     if (message.text.includes('#share')) {

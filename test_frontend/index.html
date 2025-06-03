@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with LLM Backend</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        input[type="text"], button { padding: 8px; margin-bottom: 10px; }
+        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
+        .message { margin-bottom: 5px; }
+        .system-message { color: blue; }
+        .llm-message { color: green; }
+        .user-message { color: black; }
+    </style>
+</head>
+<body>
+    <h1>Chat with LLM Backend</h1>
+
+    <div id="connection-status">
+        <p><strong>Status:</strong> <span id="status-text" style="color: red;">Disconnected</span></p>
+    </div>
+
+    <hr/>
+
+    <div id="user-info">
+        <h3>Your Information</h3>
+        <label for="userName">User Name:</label>
+        <input type="text" id="userName" placeholder="Enter your name" value="TestUser">
+        <button onclick="connectSocket()">Connect</button>
+        <button onclick="disconnectSocket()" id="disconnectBtn" disabled>Disconnect</button>
+    </div>
+
+    <hr/>
+
+    <div id="room-actions">
+        <h3>Room Actions</h3>
+        <label for="createRoomName">Create Room as:</label>
+        <input type="text" id="createRoomName" placeholder="Your name">
+        <button onclick="createRoom()">Create Room</button>
+        <p><strong>OR</strong></p>
+        <label for="joinRoomCode">Join Room Code:</label>
+        <input type="text" id="joinRoomCode" placeholder="Enter room code">
+        <label for="joinRoomName">Join Room as:</label>
+        <input type="text" id="joinRoomName" placeholder="Your name">
+        <button onclick="joinRoom()">Join Room</button>
+        <p><strong>Current Room:</strong> <span id="currentRoomCode">None</span></p>
+    </div>
+
+    <hr/>
+
+    <div id="llm-management" style="display: none;">
+        <h3>LLM Management (Current Room)</h3>
+        <input type="text" id="llmName" placeholder="LLM Name (e.g., MyGPT)">
+        <input type="text" id="llmEndpoint" placeholder="LLM Endpoint (e.g., http://localhost:8080/llm-api)">
+        <button onclick="addLLM()">Add LLM</button>
+        <ul id="llmList"></ul>
+    </div>
+
+    <hr/>
+
+    <div id="chat-interface" style="display: none;">
+        <h3>Messages</h3>
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Type a message (e.g., @MyGPT What is the weather? or #share New context)" style="width: 80%;">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        let socket;
+        let currentRoom = null;
+
+        const statusText = document.getElementById('status-text');
+        const userNameInput = document.getElementById('userName');
+        const createRoomNameInput = document.getElementById('createRoomName');
+        const joinRoomCodeInput = document.getElementById('joinRoomCode');
+        const joinRoomNameInput = document.getElementById('joinRoomName');
+        const currentRoomCodeSpan = document.getElementById('currentRoomCode');
+        const messagesDiv = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const chatInterface = document.getElementById('chat-interface');
+        const llmManagement = document.getElementById('llm-management');
+        const llmNameInput = document.getElementById('llmName');
+        const llmEndpointInput = document.getElementById('llmEndpoint');
+        const llmList = document.getElementById('llmList');
+
+
+        function connectSocket() {
+            const userName = userNameInput.value.trim();
+            if (!userName) {
+                alert('Please enter a user name to connect.');
+                return;
+            }
+
+            // Replace with your backend's actual port (e.g., 3001)
+            socket = io('http://localhost:3001');
+
+            socket.on('connect', () => {
+                statusText.textContent = 'Connected';
+                statusText.style.color = 'green';
+                disconnectBtn.disabled = false;
+                console.log('Connected to Socket.IO server');
+            });
+
+            socket.on('disconnect', () => {
+                statusText.textContent = 'Disconnected';
+                statusText.style.color = 'red';
+                disconnectBtn.disabled = true;
+                currentRoom = null;
+                currentRoomCodeSpan.textContent = 'None';
+                messagesDiv.innerHTML = '';
+                chatInterface.style.display = 'none';
+                llmManagement.style.display = 'none';
+                console.log('Disconnected from Socket.IO server');
+            });
+
+            socket.on('message', (message) => {
+                displayMessage(message);
+            });
+        }
+
+        function disconnectSocket() {
+            if (socket) {
+                socket.disconnect();
+            }
+        }
+
+        function createRoom() {
+            if (!socket || !socket.connected) {
+                alert('Please connect first.');
+                return;
+            }
+            const userName = createRoomNameInput.value.trim() || userNameInput.value.trim();
+            if (!userName) {
+                alert('Please enter a user name to create a room.');
+                return;
+            }
+
+            socket.emit('createRoom', userName, (response) => {
+                if (response.error) {
+                    alert('Error creating room: ' + response.error);
+                } else {
+                    currentRoom = response.code;
+                    currentRoomCodeSpan.textContent = currentRoom;
+                    messagesDiv.innerHTML = ''; // Clear messages for new room
+                    chatInterface.style.display = 'block';
+                    llmManagement.style.display = 'block';
+                    alert('Room created with code: ' + response.code);
+                    console.log('Room created:', response.code);
+                }
+            });
+        }
+
+        function joinRoom() {
+            if (!socket || !socket.connected) {
+                alert('Please connect first.');
+                return;
+            }
+            const code = joinRoomCodeInput.value.trim();
+            const userName = joinRoomNameInput.value.trim() || userNameInput.value.trim();
+            if (!code || !userName) {
+                alert('Please enter a room code and user name to join.');
+                return;
+            }
+
+            socket.emit('joinRoom', code, userName, (response) => {
+                if (response.error) {
+                    alert('Error joining room: ' + response.error);
+                } else {
+                    currentRoom = code;
+                    currentRoomCodeSpan.textContent = currentRoom;
+                    messagesDiv.innerHTML = ''; // Clear existing messages
+                    response.messages.forEach(msg => displayMessage(msg)); // Display history
+                    chatInterface.style.display = 'block';
+                    llmManagement.style.display = 'block';
+                    alert('Joined room: ' + code);
+                    console.log('Joined room:', code, 'Users:', response.users);
+                }
+            });
+        }
+
+        function sendMessage() {
+            if (!socket || !socket.connected || !currentRoom) {
+                alert('Please connect and join/create a room first.');
+                return;
+            }
+            const messageText = messageInput.value.trim();
+            if (!messageText) {
+                return;
+            }
+
+            socket.emit('sendMessage', { text: messageText }, (response) => {
+                if (response && response.error) {
+                    alert('Error sending message: ' + response.error);
+                }
+            });
+            messageInput.value = ''; // Clear input after sending
+        }
+
+        function addLLM() {
+            if (!socket || !socket.connected || !currentRoom) {
+                alert('Please connect and join/create a room first.');
+                return;
+            }
+            const llmName = llmNameInput.value.trim();
+            const llmEndpoint = llmEndpointInput.value.trim();
+
+            if (!llmName || !llmEndpoint) {
+                alert('Please enter both LLM Name and Endpoint.');
+                return;
+            }
+
+            const llmConfig = {
+                name: llmName,
+                endpoint: llmEndpoint // This would be your NVIDIA NIM endpoint
+            };
+
+            socket.emit('addLLMToRoom', currentRoom, llmConfig);
+            alert(`LLM "${llmName}" added to the room.`);
+            llmNameInput.value = '';
+            llmEndpointInput.value = '';
+            updateLLMList(); // Update the displayed list
+        }
+
+        function removeLLM(index) {
+            if (!socket || !socket.connected || !currentRoom) {
+                alert('Please connect and join/create a room first.');
+                return;
+            }
+            socket.emit('removeLLMFromRoom', currentRoom, index);
+            alert('LLM removed from the room.');
+            updateLLMList(); // Update the displayed list
+        }
+
+        function updateLLMList() {
+            // This is a simplified client-side update. In a real application,
+            // you'd likely have the server emit an event to inform clients
+            // about LLM list changes in the room.
+            // For now, we'll just clear and prompt the user to mentally track or refresh.
+            llmList.innerHTML = '<li>LLMs in this room (client-side only, refresh if needed):</li>';
+            // You'd need a server-side event to get the current list of LLMs in the room
+            // and then populate this list dynamically.
+            // For example, the server could emit a 'roomUpdate' event with llms array.
+        }
+
+
+        function displayMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+
+            let senderName = message.user ? message.user.name : 'Unknown';
+            let messageClass = 'user-message';
+
+            if (message.user && message.user.id === 'system') {
+                messageClass = 'system-message';
+                senderName = message.user.name; // For system messages like LLM responses
+            } else if (message.user && message.user.name.startsWith('@')) { // Simple check for LLM replies
+                 messageClass = 'llm-message';
+            }
+
+
+            messageElement.classList.add(messageClass);
+
+            const timestamp = new Date(message.timestamp).toLocaleTimeString();
+            messageElement.innerHTML = `<strong>${senderName} (${timestamp}):</strong> ${message.text}`;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to bottom
+        }
+    </script>
+</body>
+</html>
