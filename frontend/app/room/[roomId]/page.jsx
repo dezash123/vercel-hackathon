@@ -1,12 +1,11 @@
 "use client"
-
 import { useState } from "react"
 import { useParams, useSearchParams } from "next/navigation"
-import { ChatInterface } from "@/components/chat-interface"
-import { PromptTreeSidebar } from "@/components/prompt-tree-sidebar"
-import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
-import { useChat } from "@ai-sdk/react"
+import { SocketChat } from "@/components/socket-chat"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 export default function RoomPage() {
   const params = useParams()
@@ -15,59 +14,11 @@ export default function RoomPage() {
   const initialName = searchParams.get("name") || ""
   const [userName, setUserName] = useState(initialName)
   const [isNameSet, setIsNameSet] = useState(Boolean(initialName))
-  const [users, setUsers] = useState([])
-  const [conversationTree, setConversationTree] = useState({
-    id: "root",
-    messages: [],
-    children: [],
-    title: "Main Conversation",
-  })
-  const [currentBranch, setCurrentBranch] = useState("root")
 
-  const { messages, input, handleInputChange, handleSubmit, setMessages } = useChat({
-    api: "/api/chat",
-    body: { roomId, userName },
-  })
-
-  const handleNameSubmit = (name) => {
-    setUserName(name)
-    setIsNameSet(true)
-  }
-
-  const createBranch = (fromMessageIndex) => {
-    const branchId = `branch-${Date.now()}`
-    const branchMessages = messages.slice(0, fromMessageIndex + 1)
-
-    const newBranch = {
-      id: branchId,
-      messages: branchMessages,
-      children: [],
-      title: `Branch from message ${fromMessageIndex + 1}`,
-    }
-
-    setConversationTree((prev) => ({
-      ...prev,
-      children: [...prev.children, newBranch],
-    }))
-
-    setCurrentBranch(branchId)
-    setMessages(branchMessages)
-  }
-
-  const switchToBranch = (branchId) => {
-    setCurrentBranch(branchId)
-    const findBranch = (node) => {
-      if (node.id === branchId) return node
-      for (const child of node.children) {
-        const found = findBranch(child)
-        if (found) return found
-      }
-      return null
-    }
-
-    const branch = findBranch(conversationTree)
-    if (branch) {
-      setMessages(branch.messages)
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    if (userName.trim()) {
+      setIsNameSet(true)
     }
   }
 
@@ -75,30 +26,24 @@ export default function RoomPage() {
     return (
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
-          <div className="bg-card p-8 rounded-lg shadow-lg max-w-md w-full border">
-            <h2 className="text-2xl font-bold mb-4 text-center">Join Room: {roomId}</h2>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                const formData = new FormData(e.currentTarget)
-                const name = formData.get("name")
-                if (name.trim()) handleNameSubmit(name.trim())
-              }}
-            >
-              <input
-                name="name"
-                placeholder="Enter your name"
-                className="w-full p-3 border rounded-lg mb-4 bg-background"
-                required
-              />
-              <button
-                type="submit"
-                className="w-full bg-primary text-primary-foreground p-3 rounded-lg hover:bg-primary/90"
-              >
-                Join Chat
-              </button>
-            </form>
-          </div>
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Join Room: {roomId}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <Input
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  placeholder="Your name"
+                  required
+                />
+                <Button type="submit" className="w-full">
+                  Join Chat
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </ThemeProvider>
     )
@@ -106,30 +51,9 @@ export default function RoomPage() {
 
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <SidebarProvider>
-        <div className="flex h-screen w-full">
-          <SidebarInset className="flex-1">
-            <ChatInterface
-              roomId={roomId}
-              userName={userName}
-              users={users}
-              messages={messages}
-              input={input}
-              handleInputChange={handleInputChange}
-              handleSubmit={handleSubmit}
-              onCreateBranch={createBranch}
-            />
-          </SidebarInset>
-          <Sidebar side="right" className="border-l">
-            <PromptTreeSidebar
-              conversationTree={conversationTree}
-              currentBranch={currentBranch}
-              onSwitchBranch={switchToBranch}
-              onCreateBranch={createBranch}
-            />
-          </Sidebar>
-        </div>
-      </SidebarProvider>
+      <div className="min-h-screen p-4 bg-background">
+        <SocketChat roomId={roomId} userName={userName} />
+      </div>
     </ThemeProvider>
   )
 }
