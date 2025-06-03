@@ -3,8 +3,20 @@ const http = require('http');
 const { Server } = require('socket.io');
 const crypto = require('crypto');
 const axios = require('axios');
+const rateLimit = require('express-rate-limit');
+const { rateLimit: socketRateLimit } = require('socket.io-ratelimit');
 
 const app = express();
+
+// Configure rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+app.use(apiLimiter);
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -12,6 +24,13 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
+
+// Apply rate limiting to Socket.IO
+io.use(socketRateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Max events per connection per window
+  delayMs: 0
+}));
 
 // Room storage
 const rooms = new Map();
@@ -27,10 +46,15 @@ io.on('connection', (socket) => {
 
   // Create new room
   socket.on('createRoom', (userName, callback) => {
+    if (typeof userName !== 'string' || userName.trim().length === 0 || userName.length > 30) {
+      return callback({ error: 'Invalid user name' });
+    }
     const code = generateJoinCode();
     rooms.set(code, {
       users: new Map([[socket.id, { id: socket.id, name: userName }]]),
-      llm: null
+      llm: null,
+      messages: [], // Store message history
+      createdAt: new Date()
     });
     socket.join(code);
     callback({ code });
@@ -38,6 +62,12 @@ io.on('connection', (socket) => {
 
   // Join existing room
   socket.on('joinRoom', (code, userName, callback) => {
+    if (typeof code !== 'string' || code.length !== 8) {
+      return callback({ error: 'Invalid room code' });
+    }
+    if (typeof userName !== 'string' || userName.trim().length === 0 || userName.length > 30) {
+      return callback({ error: 'Invalid user name' });
+    }
     if (!rooms.has(code)) {
       return callback({ error: 'Room not found' });
     }
@@ -45,11 +75,17 @@ io.on('connection', (socket) => {
     const room = rooms.get(code);
     room.users.set(socket.id, { id: socket.id, name: userName });
     socket.join(code);
-    callback({ users: Array.from(room.users.values()) });
+    callback({ 
+      users: Array.from(room.users.values()),
+      messages: room.messages.slice(-100) // Send last 100 messages
+    });
   });
 
   // Handle messages
   socket.on('sendMessage', async (message, callback) => {
+    if (typeof message.text !== 'string' || message.text.trim().length === 0 || message.text.length > 500) {
+      return callback({ error: 'Invalid message' });
+    }
     const room = Array.from(socket.rooms).find(room => room !== socket.id);
     if (!room || !rooms.has(room)) return;
 
@@ -69,11 +105,16 @@ io.on('connection', (socket) => {
       }
     }
 
-    io.to(room).emit('message', {
+    const newMessage = {
       user: roomData.users.get(socket.id),
       text: message.text,
       timestamp: new Date()
-    });
+    };
+    
+    // Store message and keep only last 100 messages
+    roomData.messages = [...roomData.messages.slice(-99), newMessage];
+    
+    io.to(room).emit('message', newMessage);
   });
 
   // Handle disconnects
