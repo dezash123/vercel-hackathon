@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useParams } from "next/navigation"
 import { ChatInterface } from "@/components/chat-interface"
 import { PromptTreeSidebar } from "@/components/prompt-tree-sidebar"
-import { SidebarProvider } from "@/components/ui/sidebar"
+import { SidebarProvider, Sidebar, SidebarInset } from "@/components/ui/sidebar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { useChat } from "@ai-sdk/react"
 
@@ -105,23 +105,27 @@ export default function RoomPage() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <SidebarProvider>
-        <div className="flex h-screen bg-background overflow-hidden">
-          <ChatInterface
-            roomId={roomId}
-            userName={userName}
-            users={users}
-            messages={messages}
-            input={input}
-            handleInputChange={handleInputChange}
-            handleSubmit={handleSubmit}
-            onCreateBranch={createBranch}
-          />
-          <PromptTreeSidebar
-            conversationTree={conversationTree}
-            currentBranch={currentBranch}
-            onSwitchBranch={switchToBranch}
-            onCreateBranch={createBranch}
-          />
+        <div className="flex h-screen w-full">
+          <SidebarInset className="flex-1">
+            <ChatInterface
+              roomId={roomId}
+              userName={userName}
+              users={users}
+              messages={messages}
+              input={input}
+              handleInputChange={handleInputChange}
+              handleSubmit={handleSubmit}
+              onCreateBranch={createBranch}
+            />
+          </SidebarInset>
+          <Sidebar side="right" className="border-l">
+            <PromptTreeSidebar
+              conversationTree={conversationTree}
+              currentBranch={currentBranch}
+              onSwitchBranch={switchToBranch}
+              onCreateBranch={createBranch}
+            />
+          </Sidebar>
         </div>
       </SidebarProvider>
     </ThemeProvider>
