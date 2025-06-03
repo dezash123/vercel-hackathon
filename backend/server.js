@@ -4,7 +4,6 @@ const { Server } = require('socket.io');
 const crypto = require('crypto');
 const axios = require('axios');
 const rateLimit = require('express-rate-limit');
-const { rateLimit: socketRateLimit } = require('socket.io-ratelimit');
 
 const app = express();
 
@@ -25,12 +24,6 @@ const io = new Server(server, {
   }
 });
 
-// Apply rate limiting to Socket.IO
-io.use(socketRateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Max events per connection per window
-  delayMs: 0
-}));
 
 // Room storage
 const rooms = new Map();
