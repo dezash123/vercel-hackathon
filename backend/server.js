@@ -44,7 +44,7 @@ io.on('connection', (socket) => {
     const code = generateJoinCode();
     rooms.set(code, {
       users: new Map([[socket.id, { id: socket.id, name: userName }]]),
-      llm: null,
+      llms: [],
       messages: [], // Store message history
       createdAt: new Date()
     });
@@ -83,18 +83,26 @@ io.on('connection', (socket) => {
 
     // Check if LLM response needed
     const roomData = rooms.get(room);
-    if (roomData.llm && message.text.startsWith('/ask')) {
+    if (roomData.llms.length > 0 && message.text.startsWith('/ask')) {
       const prompt = message.text.replace('/ask', '').trim();
-      try {
-        const llmResponse = await handleLLMRequest(roomData.llm, prompt);
-        io.to(room).emit('message', {
-          user: { id: 'system', name: 'AI' },
-          text: llmResponse,
-          timestamp: new Date()
-        });
-      } catch (error) {
-        console.error('LLM error:', error);
-      }
+      // Process through all LLMs in parallel
+      const responses = await Promise.allSettled(
+        roomData.llms.map(llm => 
+          handleLLMRequest(llm, prompt)
+            .then(text => ({
+              user: { id: 'system', name: llm.name || 'AI' },
+              text,
+              timestamp: new Date()
+            }))
+        )
+      );
+      
+      // Send all successful responses
+      responses.forEach(result => {
+        if (result.status === 'fulfilled') {
+          io.to(room).emit('message', result.value);
+        }
+      });
     }
 
     const newMessage = {
@@ -125,13 +133,13 @@ io.on('connection', (socket) => {
   // LLM management
   socket.on('addLLMToRoom', (code, llmConfig) => {
     if (rooms.has(code)) {
-      rooms.get(code).llm = llmConfig;
+      rooms.get(code).llms.push(llmConfig);
     }
   });
 
-  socket.on('removeLLMFromRoom', (code) => {
+  socket.on('removeLLMFromRoom', (code, index) => {
     if (rooms.has(code)) {
-      rooms.get(code).llm = null;
+      rooms.get(code).llms = rooms.get(code).llms.filter((_, i) => i !== index);
     }
   });
 });
