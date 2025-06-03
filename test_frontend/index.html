@@ -53,7 +53,7 @@
     <div id="llm-management" style="display: none;">
         <h3>LLM Management (Current Room)</h3>
         <input type="text" id="llmName" placeholder="LLM Name (e.g., MyGPT)">
-        <input type="text" id="llmEndpoint" placeholder="LLM Endpoint (e.g., http://localhost:8080/llm-api)">
+        <!-- <input type="text" id="llmEndpoint" placeholder="LLM Endpoint (e.g., http://localhost:8080/llm-api)"> -->
         <button onclick="addLLM()">Add LLM</button>
         <ul id="llmList"></ul>
     </div>
@@ -205,22 +205,20 @@
                 return;
             }
             const llmName = llmNameInput.value.trim();
-            const llmEndpoint = llmEndpointInput.value.trim();
+            <!-- const llmEndpoint = llmEndpointInput.value.trim(); -->
 
-            if (!llmName || !llmEndpoint) {
+            if (!llmName) {
                 alert('Please enter both LLM Name and Endpoint.');
                 return;
             }
 
             const llmConfig = {
                 name: llmName,
-                endpoint: llmEndpoint // This would be your NVIDIA NIM endpoint
             };
 
-            socket.emit('addLLMToRoom', currentRoom, llmConfig);
+            socket.emit('addLLMToRoom', currentRoom, llmName);
             alert(`LLM "${llmName}" added to the room.`);
             llmNameInput.value = '';
-            llmEndpointInput.value = '';
             updateLLMList(); // Update the displayed list
         }
 
