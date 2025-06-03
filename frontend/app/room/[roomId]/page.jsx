@@ -10,11 +10,11 @@ import { useChat } from "@ai-sdk/react"
 
 export default function RoomPage() {
   const params = useParams()
-  const roomId = params.roomId as string
+  const roomId = params.roomId
   const [userName, setUserName] = useState("")
   const [isNameSet, setIsNameSet] = useState(false)
-  const [users, setUsers] = useState<string[]>([])
-  const [conversationTree, setConversationTree] = useState<any>({
+  const [users, setUsers] = useState([])
+  const [conversationTree, setConversationTree] = useState({
     id: "root",
     messages: [],
     children: [],
@@ -27,12 +27,12 @@ export default function RoomPage() {
     body: { roomId, userName },
   })
 
-  const handleNameSubmit = (name: string) => {
+  const handleNameSubmit = (name) => {
     setUserName(name)
     setIsNameSet(true)
   }
 
-  const createBranch = (fromMessageIndex: number) => {
+  const createBranch = (fromMessageIndex) => {
     const branchId = `branch-${Date.now()}`
     const branchMessages = messages.slice(0, fromMessageIndex + 1)
 
@@ -52,9 +52,9 @@ export default function RoomPage() {
     setMessages(branchMessages)
   }
 
-  const switchToBranch = (branchId: string) => {
+  const switchToBranch = (branchId) => {
     setCurrentBranch(branchId)
-    const findBranch = (node: any): any => {
+    const findBranch = (node) => {
       if (node.id === branchId) return node
       for (const child of node.children) {
         const found = findBranch(child)
@@ -79,7 +79,7 @@ export default function RoomPage() {
               onSubmit={(e) => {
                 e.preventDefault()
                 const formData = new FormData(e.currentTarget)
-                const name = formData.get("name") as string
+                const name = formData.get("name")
                 if (name.trim()) handleNameSubmit(name.trim())
               }}
             >
