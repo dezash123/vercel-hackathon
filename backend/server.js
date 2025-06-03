@@ -81,35 +81,62 @@ io.on('connection', (socket) => {
     const room = Array.from(socket.rooms).find(room => room !== socket.id);
     if (!room || !rooms.has(room)) return;
 
-    // Check if LLM response needed
-    const roomData = rooms.get(room);
-    if (roomData.llms.length > 0 && message.text.startsWith('/ask')) {
-      const prompt = message.text.replace('/ask', '').trim();
-      // Process through all LLMs in parallel
-      const responses = await Promise.allSettled(
-        roomData.llms.map(llm => 
-          handleLLMRequest(llm, prompt)
-            .then(text => ({
-              user: { id: 'system', name: llm.name || 'AI' },
-              text,
-              timestamp: new Date()
-            }))
-        )
-      );
-      
-      // Send all successful responses
-      responses.forEach(result => {
-        if (result.status === 'fulfilled') {
-          io.to(room).emit('message', result.value);
-        }
-      });
-    }
-
+    // Handle message context and LLM prompts
     const newMessage = {
       user: roomData.users.get(socket.id),
       text: message.text,
       timestamp: new Date()
     };
+
+    const roomData = rooms.get(room);
+    
+    // Check for shared context updates
+    if (message.text.includes('#share')) {
+      roomData.llms.forEach(llm => {
+        llm.context = llm.context || [];
+        llm.context.push({
+          role: 'user',
+          content: message.text.replace('#share', '').trim(),
+          timestamp: new Date()
+        });
+      });
+    }
+
+    // Check for LLM mentions
+    const mentionMatch = message.text.match(/^@(\w+)\s+(.+)/);
+    if (mentionMatch) {
+      const [_, llmName, prompt] = mentionMatch;
+      const llm = roomData.llms.find(l => l.name === llmName);
+      
+      if (llm) {
+        llm.context = llm.context || [];
+        // Add user message to context
+        llm.context.push({
+          role: 'user',
+          content: prompt,
+          timestamp: new Date()
+        });
+
+        try {
+          const llmResponse = await handleLLMRequest(llm, prompt);
+          
+          // Add LLM response to context
+          llm.context.push({
+            role: 'assistant',
+            content: llmResponse,
+            timestamp: new Date()
+          });
+
+          io.to(room).emit('message', {
+            user: { id: 'system', name: llm.name },
+            text: llmResponse,
+            timestamp: new Date()
+          });
+        } catch (error) {
+          console.error('LLM error:', error);
+        }
+      }
+    }
     
     // Store message and keep only last 100 messages
     roomData.messages = [...roomData.messages.slice(-99), newMessage];
@@ -133,7 +160,10 @@ io.on('connection', (socket) => {
   // LLM management
   socket.on('addLLMToRoom', (code, llmConfig) => {
     if (rooms.has(code)) {
-      rooms.get(code).llms.push(llmConfig);
+      rooms.get(code).llms.push({
+        ...llmConfig,
+        context: []
+      });
     }
   });
 
@@ -148,6 +178,7 @@ io.on('connection', (socket) => {
 async function handleLLMRequest(llmConfig, prompt) {
   const response = await axios.post(llmConfig.endpoint, {
     prompt,
+    context: llmConfig.context || [],
     max_tokens: 200,
     temperature: 0.7
   }, {
