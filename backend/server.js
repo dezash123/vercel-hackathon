@@ -24,7 +24,6 @@ const io = new Server(server, {
   }
 });
 
-
 // Room storage
 const rooms = new Map();
 
