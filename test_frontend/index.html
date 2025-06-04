@@ -4,67 +4,72 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat with LLM Backend</title>
+    <link rel="stylesheet" href="globals.css">
     <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        input[type="text"], button { padding: 8px; margin-bottom: 10px; }
-        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
-        .message { margin-bottom: 5px; }
-        .system-message { color: blue; }
-        .llm-message { color: green; }
-        .user-message { color: black; }
-    </style>
 </head>
 <body>
-    <h1>Chat with LLM Backend</h1>
+    <div class="container">
+        <header class="header">
+            <h1>Chat with LLM Backend</h1>
+            <div class="connection-status">
+                <span class="status-label">Status:</span>
+                <span id="status-text" class="status-disconnected">Disconnected</span>
+            </div>
+        </header>
 
-    <div id="connection-status">
-        <p><strong>Status:</strong> <span id="status-text" style="color: red;">Disconnected</span></p>
-    </div>
+        <main class="main-content">
+            <section class="card">
+                <h3>Your Information</h3>
+                <div class="form-group">
+                    <label for="userName">User Name:</label>
+                    <input type="text" id="userName" placeholder="Enter your name" value="TestUser" class="input">
+                    <div class="button-group">
+                        <button onclick="connectSocket()" class="btn btn-primary">Connect</button>
+                        <button onclick="disconnectSocket()" id="disconnectBtn" disabled class="btn btn-secondary">Disconnect</button>
+                    </div>
+                </div>
+            </section>
 
-    <hr/>
+            <section class="card">
+                <h3>Room Actions</h3>
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="createRoomName">Create Room as:</label>
+                        <input type="text" id="createRoomName" placeholder="Your name" class="input">
+                        <button onclick="createRoom()" class="btn btn-primary">Create Room</button>
+                    </div>
+                    <div class="divider">OR</div>
+                    <div class="form-group">
+                        <label for="joinRoomCode">Join Room Code:</label>
+                        <input type="text" id="joinRoomCode" placeholder="Enter room code" class="input">
+                        <label for="joinRoomName">Join Room as:</label>
+                        <input type="text" id="joinRoomName" placeholder="Your name" class="input">
+                        <button onclick="joinRoom()" class="btn btn-primary">Join Room</button>
+                    </div>
+                    <div class="current-room">
+                        <strong>Current Room:</strong> <span id="currentRoomCode" class="room-code">None</span>
+                    </div>
+                </div>
+            </section>
 
-    <div id="user-info">
-        <h3>Your Information</h3>
-        <label for="userName">User Name:</label>
-        <input type="text" id="userName" placeholder="Enter your name" value="TestUser">
-        <button onclick="connectSocket()">Connect</button>
-        <button onclick="disconnectSocket()" id="disconnectBtn" disabled>Disconnect</button>
-    </div>
+            <section id="llm-management" class="card hidden">
+                <h3>LLM Management</h3>
+                <div class="form-group">
+                    <input type="text" id="llmName" placeholder="LLM Name (e.g., MyGPT)" class="input">
+                    <button onclick="addLLM()" class="btn btn-primary">Add LLM</button>
+                </div>
+                <ul id="llmList" class="llm-list"></ul>
+            </section>
 
-    <hr/>
-
-    <div id="room-actions">
-        <h3>Room Actions</h3>
-        <label for="createRoomName">Create Room as:</label>
-        <input type="text" id="createRoomName" placeholder="Your name">
-        <button onclick="createRoom()">Create Room</button>
-        <p><strong>OR</strong></p>
-        <label for="joinRoomCode">Join Room Code:</label>
-        <input type="text" id="joinRoomCode" placeholder="Enter room code">
-        <label for="joinRoomName">Join Room as:</label>
-        <input type="text" id="joinRoomName" placeholder="Your name">
-        <button onclick="joinRoom()">Join Room</button>
-        <p><strong>Current Room:</strong> <span id="currentRoomCode">None</span></p>
-    </div>
-
-    <hr/>
-
-    <div id="llm-management" style="display: none;">
-        <h3>LLM Management (Current Room)</h3>
-        <input type="text" id="llmName" placeholder="LLM Name (e.g., MyGPT)">
-        <!-- <input type="text" id="llmEndpoint" placeholder="LLM Endpoint (e.g., http://localhost:8080/llm-api)"> -->
-        <button onclick="addLLM()">Add LLM</button>
-        <ul id="llmList"></ul>
-    </div>
-
-    <hr/>
-
-    <div id="chat-interface" style="display: none;">
-        <h3>Messages</h3>
-        <div id="messages"></div>
-        <input type="text" id="messageInput" placeholder="Type a message (e.g., @MyGPT What is the weather? or #share New context)" style="width: 80%;">
-        <button onclick="sendMessage()">Send</button>
+            <section id="chat-interface" class="card hidden">
+                <h3>Messages</h3>
+                <div id="messages" class="messages-container"></div>
+                <div class="message-input-container">
+                    <input type="text" id="messageInput" placeholder="Type a message (e.g., @MyGPT What is the weather? or #share New context)" class="input message-input">
+                    <button onclick="sendMessage()" class="btn btn-primary">Send</button>
+                </div>
+            </section>
+        </main>
     </div>
 
     <script>
@@ -99,20 +104,20 @@
 
             socket.on('connect', () => {
                 statusText.textContent = 'Connected';
-                statusText.style.color = 'green';
+                statusText.className = 'status-connected';
                 disconnectBtn.disabled = false;
                 console.log('Connected to Socket.IO server');
             });
 
             socket.on('disconnect', () => {
                 statusText.textContent = 'Disconnected';
-                statusText.style.color = 'red';
+                statusText.className = 'status-disconnected';
                 disconnectBtn.disabled = true;
                 currentRoom = null;
                 currentRoomCodeSpan.textContent = 'None';
                 messagesDiv.innerHTML = '';
-                chatInterface.style.display = 'none';
-                llmManagement.style.display = 'none';
+                chatInterface.classList.add('hidden');
+                llmManagement.classList.add('hidden');
                 console.log('Disconnected from Socket.IO server');
             });
 
@@ -145,8 +150,8 @@
                     currentRoom = response.code;
                     currentRoomCodeSpan.textContent = currentRoom;
                     messagesDiv.innerHTML = ''; // Clear messages for new room
-                    chatInterface.style.display = 'block';
-                    llmManagement.style.display = 'block';
+                    chatInterface.classList.remove('hidden');
+                    llmManagement.classList.remove('hidden');
                     alert('Room created with code: ' + response.code);
                     console.log('Room created:', response.code);
                 }
@@ -173,8 +178,8 @@
                     currentRoomCodeSpan.textContent = currentRoom;
                     messagesDiv.innerHTML = ''; // Clear existing messages
                     response.messages.forEach(msg => displayMessage(msg)); // Display history
-                    chatInterface.style.display = 'block';
-                    llmManagement.style.display = 'block';
+                    chatInterface.classList.remove('hidden');
+                    llmManagement.classList.remove('hidden');
                     alert('Joined room: ' + code);
                     console.log('Joined room:', code, 'Users:', response.users);
                 }
