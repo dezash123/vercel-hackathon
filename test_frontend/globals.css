@@ -304,10 +304,17 @@ body {
   display: flex;
   gap: 12px;
   align-items: flex-end;
+  width: 100%;
 }
 
 .message-input {
-  flex: 1;
+  flex: 4;
+  min-width: 0;
+}
+
+.message-input-container .btn {
+  flex: 0 0 auto;
+  min-width: 80px;
 }
 
 .llm-list {
