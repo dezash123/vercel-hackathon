@@ -11,7 +11,7 @@ const app = express();
 app.use(cors());
 
 
-const availableLLMs = [{ short: "deepseek", long: "deepseek-ai/deepseek-r1-distill-llama-8b" }, { short: "llama", long: "" }, { short: "qwen", long: "" }];
+const availableLLMs = [{ short: "deepseek", long: "deepseek-ai/deepseek-r1-distill-llama-8b" }, { short: "llama", long: "meta/llama-3.2-3b-instruct" }, { short: "qwen", long: "qwen/qwen3-235b-a22b" }];
 
 console.log(`api key: ${process.env.NVIDIA_API_KEY}`)
 
@@ -109,12 +109,15 @@ io.on('connection', (socket) => {
             roomData.llms.forEach(llm => {
                 llm.context = llm.context || [];
                 llm.context.push({
-                    role: 'user',
-                    content: message.text.replace('#share', '').trim(),
+                    role: `user`,
+                    content: `message from username: ${newMessage.user.name}.   ${message.text.replace('#share', '').trim()}`,
                     // timestamp: new Date()
                 });
             });
         }
+
+
+        var llmResponseMessage = {}
 
         // Check for LLM mentions
         const mentionMatch = message.text.match(/^@(\w+)\s+(.+)/);
@@ -126,11 +129,7 @@ io.on('connection', (socket) => {
             if (llm) {
                 llm.context = llm.context || [];
                 // Add user message to context
-                llm.context.push({
-                    role: 'user',
-                    content: prompt,
-                    // timestamp: new Date()
-                });
+
 
                 try {
                     io.to(room).emit('llmMessageStart', {
@@ -139,7 +138,13 @@ io.on('connection', (socket) => {
                         timestamp: new Date()
                     });
 
-                    const llmResponse = await handleLLMRequest(llm, prompt, room);
+                    const llmResponse = await handleLLMRequest(llm, prompt, room, newMessage.user.name);
+
+                    llmResponseMessage = {
+                        user: { id: 'system', name: llm.name },
+                        text: llmResponse,
+                        timestamp: new Date()
+                    }
 
                     io.to(room).emit("message", {
                         user: { id: 'system', name: llm.name },
@@ -147,10 +152,16 @@ io.on('connection', (socket) => {
                         timestamp: new Date()
                     })
 
+                    llm.context.push({
+                        role: `user`,
+                        content: `prompt from username: ${newMessage.user.name}. ${prompt}`,
+                        // timestamp: new Date()
+                    });
+
                     // Add LLM response to context
                     llm.context.push({
                         role: 'assistant',
-                        content: llmResponse,
+                        content: `response from LLM assistant named ${llm.name}: ${llmResponse}`,
                         // timestamp: new Date()
                     });
 
@@ -165,8 +176,13 @@ io.on('connection', (socket) => {
             }
         }
 
+
         // Store message and keep only last 100 messages
         roomData.messages = [...roomData.messages.slice(-99), newMessage];
+
+        if (mentionMatch) {
+            roomData.messages = [...roomData.messages.slice(-99), llmResponseMessage];
+        }
 
         if (!mentionMatch) {
             io.to(room).emit('message', newMessage);
@@ -242,7 +258,7 @@ io.on('connection', (socket) => {
 // }
 
 // NVIDIA NIM integration
-async function handleLLMRequest(llmConfig, prompt, room) {
+async function handleLLMRequest(llmConfig, prompt, room, user) {
     const modelName = llmConfig.longName;
 
     console.log("model name: ", modelName);
@@ -252,7 +268,7 @@ async function handleLLMRequest(llmConfig, prompt, room) {
 
     const completion = await openai.chat.completions.create({
         model: modelName,
-        messages: llmConfig.context.concat([{ "role": "user", "content": prompt }]),
+        messages: llmConfig.context.concat([{ "role": "user", "content": `prompt from username: ${user}. no thinking tokens in response. ${prompt}` }]),
         temperature: 0.6,
         top_p: 0.7,
         max_tokens: 4096,
