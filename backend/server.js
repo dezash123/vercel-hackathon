@@ -11,13 +11,13 @@ const app = express();
 app.use(cors());
 
 
-const availableLLMs = [{ short: "deepseek", long: "deepseek-ai/deepseek-r1-distill-llama-8b" }, { short: "llama", long: "meta/llama-3.2-3b-instruct" }, { short: "qwen", long: "qwen/qwen3-235b-a22b" }];
+const availableLLMs = [{ short: "deepseek", long: "deepseek-ai/deepseek-r1-distill-llama-8b" }, { short: "llama", long: "meta-llama/llama-3.1-8b-instruct" }, { short: "qwen", long: "qwen/qwen3-14b:free" }];
 
-console.log(`api key: ${process.env.NVIDIA_API_KEY}`)
+console.log(`api key: ${process.env.OPENROUTER_KEY}`)
 
 const openai = new OpenAI({
-    apiKey: `${process.env.NVIDIA_API_KEY}`,
-    baseURL: 'https://integrate.api.nvidia.com/v1',
+    apiKey: `${process.env.OPENROUTER_KEY}`,
+    baseURL: "https://openrouter.ai/api/v1",
 })
 
 // Configure rate limiting
